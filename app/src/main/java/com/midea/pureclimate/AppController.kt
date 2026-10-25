@@ -71,7 +71,7 @@ class AppController(context: Context, scope: CoroutineScope) {
         room(roomId)?.let { updateRoom(it.copy(protocolId = null, learned = buttons)) }
     }
 
-    fun setTheme(t: AppTheme) {
+    fun changeTheme(t: AppTheme) {
         theme = t
         store.saveTheme(t)
     }

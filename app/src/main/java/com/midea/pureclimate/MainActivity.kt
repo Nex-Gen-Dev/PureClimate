@@ -128,7 +128,7 @@ private fun App(c: AppController) {
             version = remember {
                 runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
             },
-            onTheme = c::setTheme,
+            onTheme = c::changeTheme,
             onBack = ::back,
         )
 
