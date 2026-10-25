@@ -174,8 +174,11 @@ private fun Lcd(room: Room, protocolName: String?, onTypeClick: () -> Unit, modi
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Row(verticalAlignment = Alignment.Top) {
                     Box(contentAlignment = Alignment.CenterEnd) {
-                        // Unlit segments behind the digits, like a real LCD.
-                        Text("88", color = p.lcdTextDim, fontFamily = mono, fontSize = big, fontWeight = FontWeight.Bold)
+                        // Unlit LCD segments, shown only while the AC is off so the
+                        // live reading has nothing behind it.
+                        if (!on) {
+                            Text("88", color = p.lcdTextDim, fontFamily = mono, fontSize = big, fontWeight = FontWeight.Bold)
+                        }
                         Text(
                             if (room.mode.name == "FAN") "--" else room.temp.toString(),
                             color = ink, fontFamily = mono, fontSize = big, fontWeight = FontWeight.Bold,
