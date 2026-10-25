@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,12 +32,41 @@ jobs:
           gradle wrapper --gradle-version 8.5
           chmod +x gradlew
 
-      - name: Build Signed Debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+      - name: Build APK
+        id: build
+        run: |
+          BUILD_NUMBER=$((GITHUB_RUN_NUMBER + 100))
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          set -o pipefail
+          ./gradlew assembleDebug -PbuildNumber=$BUILD_NUMBER --stacktrace --no-daemon 2>&1 | tee build.log
+
+      - name: Report build errors
+        if: failure()
+        run: |
+          # Surface compiler errors as annotations (readable through the GitHub API).
+          grep -E '^e: |error:|What went wrong' -A3 build.log | head -60 | while IFS= read -r line; do
+            echo "::error::${line}"
+          done || true
+
+      - name: Rename APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/*.apk "dist/PureClimate-2.0.${{ steps.build.outputs.build_number }}.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: PureClimate-Signed-APK
-          path: app/build/outputs/apk/debug/*.apk
+          name: PureClimate-APK
+          path: dist/*.apk
           retention-days: 14
+
+      - name: Publish release (download from your phone)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ steps.build.outputs.build_number }}
+          name: PureClimate 2.0.${{ steps.build.outputs.build_number }}
+          body: |
+            Automatic build from ${{ github.sha }}.
+            Open this page on your phone and tap the .apk under Assets to install.
+          files: dist/*.apk
+          make_latest: true
