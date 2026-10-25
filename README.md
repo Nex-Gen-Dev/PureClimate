@@ -35,6 +35,10 @@ Phone IR blasters can't receive. For learn mode you need:
 
 It prints one `IR:<µs>,<µs>,…` line per captured signal at 115200 baud.
 
-## Credits and licenses
+## License
 
-See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Support: gendev, support.gendev@gmail.com.
+PureClimate is released under the [MIT License](LICENSE), except for third-party material, which stays under its own license (see below).
+
+## Credits and third-party licenses
+
+The AC code table and the USB library come from open-source projects with their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Support: gendev, support.gendev@gmail.com.
