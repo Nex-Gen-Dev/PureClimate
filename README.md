@@ -8,7 +8,7 @@ Every push to `main` builds an APK through GitHub Actions and publishes it as a 
 
 Builds are signed with a fixed key (`app/pureclimate-debug.keystore`), so each new APK installs over the previous one.
 
-The app updates itself: on launch it checks the latest release and offers **Install now / Later**. Versions are simple numbers (Version 10, Version 11, …). Internally the release tag and Android `versionCode` are `build-N`, where N is the GitHub run number + 100, and the app shows N − 100. Keep the `100` in sync across `app/build.gradle`, `UpdateManager.VERSION_OFFSET` and `.github/workflows/build.yml`.
+The app updates itself: on launch it checks the latest release and offers **Install now / Later**. Versions are simple numbers (Version 10, Version 11, …). Internally the release tag and Android `versionCode` are `build-N`, where N is the GitHub run number + 100, and the app shows N − 101 (build 111 is Version 10). Keep the `101` in sync across `app/build.gradle`, `UpdateManager.VERSION_OFFSET` and `.github/workflows/build.yml`.
 
 ## Features
 
