@@ -311,10 +311,10 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
         private const val KEY_LAST_CHECK = "last_check"
 
         /**
-         * Internal build N is shown to people as Version N - 100 (build 110 is Version 10).
-         * Must match the "+ 100" in .github/workflows/build.yml and app/build.gradle.
+         * Internal build N is shown to people as Version N - 101 (build 111 is Version 10).
+         * Must match the offset in .github/workflows/build.yml and app/build.gradle.
          */
-        const val VERSION_OFFSET = 100
+        const val VERSION_OFFSET = 101
 
         fun displayNumber(build: Int): Int = (build - VERSION_OFFSET).coerceAtLeast(1)
 

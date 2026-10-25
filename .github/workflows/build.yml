@@ -36,9 +36,9 @@ jobs:
         id: build
         run: |
           # Internal build number (Android versionCode, release tag "build-N").
-          # People see it as "Version N-100" (the run number): 1, 2, 3, ...
+          # People see it as "Version N-101": build 111 is Version 10, 112 is Version 11, ...
           BUILD_NUMBER=$((GITHUB_RUN_NUMBER + 100))
-          VERSION=$((BUILD_NUMBER - 100))
+          VERSION=$((BUILD_NUMBER - 101))
           echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           set -o pipefail

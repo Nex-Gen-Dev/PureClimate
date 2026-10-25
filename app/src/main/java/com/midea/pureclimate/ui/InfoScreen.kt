@@ -192,6 +192,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @Composable
 private fun LicensesContent() {
     Gap(8.dp)
+    Para("PureClimate itself is open source, released under the MIT License. Copyright (c) 2026 gendev.")
     Para("PureClimate stands on the work of these open-source projects. Thank you to everyone who built them.")
 
     Heading("IRremoteESP8266")

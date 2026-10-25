@@ -12,11 +12,11 @@ android {
         minSdk 24
         targetSdk 34
         // CI passes buildNumber (run number + 100) so every build installs as an update.
-        // People see "Version N - 100": build 110 is Version 10. Keep the 100 in sync with
+        // People see "Version N - 101": build 111 is Version 10. Keep the 101 in sync with
         // UpdateManager.VERSION_OFFSET and .github/workflows/build.yml.
-        def buildNumber = Integer.parseInt((project.findProperty('buildNumber') ?: '101').toString())
+        def buildNumber = Integer.parseInt((project.findProperty('buildNumber') ?: '102').toString())
         versionCode buildNumber
-        versionName String.valueOf(Math.max(1, buildNumber - 100))
+        versionName String.valueOf(Math.max(1, buildNumber - 101))
         vectorDrawables.useSupportLibrary = true
     }
 
