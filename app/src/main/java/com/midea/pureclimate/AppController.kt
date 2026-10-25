@@ -58,6 +58,12 @@ class AppController(context: Context, scope: CoroutineScope) {
         store.saveRooms(rooms)
     }
 
+    fun renameRoom(id: String, newName: String) {
+        val name = newName.trim().take(32)
+        if (name.isEmpty()) return
+        room(id)?.let { updateRoom(it.copy(name = name)) }
+    }
+
     fun updateRoom(room: Room) {
         rooms = rooms.map { if (it.id == room.id) room else it }
         store.saveRooms(rooms)

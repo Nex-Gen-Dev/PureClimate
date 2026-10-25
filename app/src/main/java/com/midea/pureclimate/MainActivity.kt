@@ -25,6 +25,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.lifecycleScope
 import com.midea.pureclimate.ui.BrandScreen
 import com.midea.pureclimate.ui.HomeScreen
+import com.midea.pureclimate.ui.InfoPage
+import com.midea.pureclimate.ui.InfoScreen
+import com.midea.pureclimate.ui.startInstall
 import com.midea.pureclimate.ui.LearnScreen
 import com.midea.pureclimate.ui.LocalPalette
 import com.midea.pureclimate.ui.PureClimateTheme
@@ -46,6 +49,7 @@ sealed interface Screen {
     data class Scan(val roomId: String) : Screen
     data class Brand(val roomId: String) : Screen
     data class Learn(val roomId: String) : Screen
+    data class Info(val page: InfoPage) : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -116,6 +120,14 @@ private fun App(c: AppController, updates: UpdateManager) {
         c.codebookError?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
     }
 
+    // After "Install now" finishes downloading, open the installer without a second tap.
+    LaunchedEffect(updateState) {
+        val st = updateState
+        if (st is UpdateState.ReadyToInstall && updates.consumeInstallRequest()) {
+            startInstall(context, updates, st)
+        }
+    }
+
     // "Install now / Later" popup for a newer build (outside Settings, which has its own controls).
     val promptBuild = when (val st = updateState) {
         is UpdateState.Available -> st.release.buildNumber
@@ -135,6 +147,7 @@ private fun App(c: AppController, updates: UpdateManager) {
             irOk = irOk,
             onOpen = { go(Screen.Remote(it.id)) },
             onDelete = { c.deleteRoom(it.id) },
+            onRename = { room, name -> c.renameRoom(room.id, name) },
             onAdd = { name, method ->
                 val room = c.addRoom(name)
                 go(Screen.Remote(room.id))
@@ -147,12 +160,19 @@ private fun App(c: AppController, updates: UpdateManager) {
             theme = c.theme,
             irOk = irOk,
             protocolCount = c.codebook?.variants()?.size ?: 0,
-            version = remember {
-                runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: ""
-            },
+            versionLabel = updates.currentLabel,
             onTheme = c::changeTheme,
+            onOpenInfo = { go(Screen.Info(it)) },
             onBack = ::back,
             updates = { UpdatesSection(updateState, updates, context) },
+        )
+
+        is Screen.Info -> InfoScreen(
+            page = screen.page,
+            versionLabel = updates.currentLabel,
+            protocolCount = c.codebook?.variants()?.size ?: 0,
+            irOk = irOk,
+            onBack = ::back,
         )
 
         is Screen.Remote -> {

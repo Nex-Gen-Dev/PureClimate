@@ -11,9 +11,12 @@ android {
         applicationId "com.midea.pureclimate"
         minSdk 24
         targetSdk 34
-        // CI passes the run number so every build installs as an update.
-        versionCode Integer.parseInt((project.findProperty('buildNumber') ?: '7').toString())
-        versionName "2.0." + (project.findProperty('buildNumber') ?: '0')
+        // CI passes buildNumber (run number + 100) so every build installs as an update.
+        // People see "Version N - 100": build 110 is Version 10. Keep the 100 in sync with
+        // UpdateManager.VERSION_OFFSET and .github/workflows/build.yml.
+        def buildNumber = Integer.parseInt((project.findProperty('buildNumber') ?: '101').toString())
+        versionCode buildNumber
+        versionName String.valueOf(Math.max(1, buildNumber - 100))
         vectorDrawables.useSupportLibrary = true
     }
 

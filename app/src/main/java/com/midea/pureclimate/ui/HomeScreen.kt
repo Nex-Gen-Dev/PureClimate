@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SettingsRemote
 import androidx.compose.material3.AlertDialog
@@ -62,12 +63,14 @@ fun HomeScreen(
     irOk: Boolean,
     onOpen: (Room) -> Unit,
     onDelete: (Room) -> Unit,
+    onRename: (Room, String) -> Unit,
     onAdd: (name: String, method: SetupMethod) -> Unit,
     onSettings: () -> Unit,
 ) {
     val p = LocalPalette.current
     var showAdd by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf<Room?>(null) }
+    var renaming by remember { mutableStateOf<Room?>(null) }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -98,7 +101,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             items(rooms, key = { it.id }) { room ->
-                RoomCard(room, onClick = { onOpen(room) }, onDelete = { confirmDelete = room })
+                RoomCard(room, onClick = { onOpen(room) }, onRename = { renaming = room }, onDelete = { confirmDelete = room })
             }
             item(key = "add") { AddCard { showAdd = true } }
         }
@@ -108,6 +111,35 @@ fun HomeScreen(
         AddRoomDialog(
             onDismiss = { showAdd = false },
             onCreate = { name, method -> showAdd = false; onAdd(name, method) },
+        )
+    }
+    renaming?.let { room ->
+        var text by remember(room.id) { mutableStateOf(room.name) }
+        AlertDialog(
+            onDismissRequest = { renaming = null },
+            containerColor = p.surface,
+            titleContentColor = p.text,
+            title = { Text("Rename room") },
+            text = {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it.take(32) },
+                    singleLine = true,
+                    label = { Text("Room name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = p.text, unfocusedTextColor = p.text,
+                        focusedBorderColor = p.accent, unfocusedBorderColor = p.buttonBorder,
+                        focusedLabelColor = p.accent, unfocusedLabelColor = p.textMuted, cursorColor = p.accent,
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { onRename(room, text); renaming = null }, enabled = text.isNotBlank()) {
+                    Text("Save", color = if (text.isNotBlank()) p.accent else p.textMuted)
+                }
+            },
+            dismissButton = { TextButton(onClick = { renaming = null }) { Text("Cancel", color = p.textMuted) } },
         )
     }
     confirmDelete?.let { room ->
@@ -127,7 +159,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun RoomCard(room: Room, onClick: () -> Unit, onDelete: () -> Unit) {
+private fun RoomCard(room: Room, onClick: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
     val p = LocalPalette.current
     val active = room.power || room.isLearnedOnly
     val shape = RoundedCornerShape(22.dp)
@@ -155,6 +187,9 @@ private fun RoomCard(room: Room, onClick: () -> Unit, onDelete: () -> Unit) {
                     )
                 }
                 Box(Modifier.weight(1f))
+                IconButton(onClick = onRename, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Rounded.Edit, contentDescription = "Rename ${room.name}", tint = p.textMuted, modifier = Modifier.size(17.dp))
+                }
                 IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Rounded.Close, contentDescription = "Remove ${room.name}", tint = p.textMuted, modifier = Modifier.size(18.dp))
                 }

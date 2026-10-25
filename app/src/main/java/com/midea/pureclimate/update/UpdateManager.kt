@@ -16,19 +16,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** A published build, read from the GitHub "latest release" API. */
+/** A published version, read from the GitHub "latest release" API. */
 data class ReleaseInfo(
+    /** Internal build number (the release tag is "build-<number>"). */
     val buildNumber: Int,
-    val versionName: String,
     val notes: String,
     val apkUrl: String,
     val apkSize: Long,
-    val pageUrl: String,
     val publishedAt: String,
-)
+) {
+    /** "Version 11" */
+    val label: String get() = UpdateManager.label(buildNumber)
+}
 
 sealed interface UpdateState {
     data object Idle : UpdateState
@@ -40,15 +43,24 @@ sealed interface UpdateState {
     data class Failed(val message: String) : UpdateState
 }
 
+/** An error whose message is already written for the person using the app. */
+private class FriendlyError(message: String) : Exception(message)
+
 /**
- * Checks GitHub Releases for a newer PureClimate build, downloads the APK and
- * hands it to Android's installer. Builds are numbered by CI (tag "build-N",
- * versionCode N), so "newer" is simply a higher number.
+ * Checks GitHub Releases for a newer PureClimate version, downloads the APK and
+ * hands it to Android's installer.
+ *
+ * Releases are tagged "build-N" and the app's versionCode is N, so "newer" is
+ * simply a higher number. People never see N: they see "Version N - 100"
+ * (see [VERSION_OFFSET]), which counts 1, 2, 3, ...
  */
 class UpdateManager(context: Context, private val scope: CoroutineScope) {
     private val app = context.applicationContext
     private val prefs = app.getSharedPreferences("pure_climate_updates", Context.MODE_PRIVATE)
     private var job: Job? = null
+
+    @Volatile
+    private var installWhenReady = false
 
     private val _state = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val state: StateFlow<UpdateState> = _state
@@ -58,9 +70,8 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
         if (Build.VERSION.SDK_INT >= 28) info.longVersionCode.toInt() else @Suppress("DEPRECATION") info.versionCode
     }.getOrDefault(0)
 
-    val currentVersionName: String = runCatching {
-        app.packageManager.getPackageInfo(app.packageName, 0).versionName
-    }.getOrNull() ?: "?"
+    /** "Version 10" */
+    val currentLabel: String = label(currentBuild)
 
     var autoCheck: Boolean
         get() = prefs.getBoolean(KEY_AUTO, true)
@@ -68,12 +79,8 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
 
     val lastCheckMillis: Long get() = prefs.getLong(KEY_LAST_CHECK, 0L)
 
-    /** Build the user chose "Later" for; we don't nag again for that same build this session. */
-    var snoozedBuild: Int = 0
-        private set
-
-    fun snooze(build: Int) {
-        snoozedBuild = build
+    init {
+        removeOldDownloads()
     }
 
     /** Called on app start. */
@@ -85,6 +92,7 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
     fun check() {
         if (_state.value is UpdateState.Checking || _state.value is UpdateState.Downloading) return
         job?.cancel()
+        installWhenReady = false
         _state.value = UpdateState.Checking
         job = scope.launch(Dispatchers.IO) {
             _state.value = try {
@@ -101,7 +109,7 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "update check failed", e)
-                UpdateState.Failed(e.message ?: "Could not check for updates")
+                UpdateState.Failed(friendlyMessage(e, checking = true))
             }
         }
     }
@@ -109,6 +117,7 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
     fun download(release: ReleaseInfo) {
         if (_state.value is UpdateState.Downloading) return
         job?.cancel()
+        installWhenReady = true
         _state.value = UpdateState.Downloading(release, 0f)
         job = scope.launch(Dispatchers.IO) {
             _state.value = try {
@@ -117,9 +126,20 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
                 UpdateState.ReadyToInstall(release, target)
             } catch (e: Exception) {
                 Log.w(TAG, "download failed", e)
-                UpdateState.Failed("Download failed: ${e.message ?: e.javaClass.simpleName}")
+                installWhenReady = false
+                UpdateState.Failed(friendlyMessage(e, checking = false))
             }
         }
+    }
+
+    /**
+     * True once, right after a download that the person asked for finishes, so the
+     * installer opens by itself and they don't have to tap twice.
+     */
+    fun consumeInstallRequest(): Boolean {
+        val pending = installWhenReady
+        installWhenReady = false
+        return pending
     }
 
     /** True if Android will let us open the installer; otherwise the user must allow it once. */
@@ -143,7 +163,7 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
             context.startActivity(intent)
             true
         } catch (e: ActivityNotFoundException) {
-            _state.value = UpdateState.Failed("No installer found on this phone")
+            _state.value = UpdateState.Failed("This phone has no installer app, so the update can't be installed.")
             false
         }
     }
@@ -160,11 +180,9 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
         try {
             when (val code = conn.responseCode) {
                 200 -> Unit
-                404 -> throw IllegalStateException(
-                    "No public releases found at github.com/$REPO. If the repo is private, the phone can't see its releases.",
-                )
-                403, 429 -> throw IllegalStateException("GitHub is rate-limiting checks. Try again in a few minutes.")
-                else -> throw IllegalStateException("GitHub answered HTTP $code")
+                404 -> throw FriendlyError("No update information is available right now.")
+                403, 429 -> throw FriendlyError("Too many checks in a row. Please try again in a few minutes.")
+                else -> throw FriendlyError("The update server had a problem (code $code). Please try again later.")
             }
             val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
             return parseRelease(json)
@@ -182,11 +200,9 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
             if (a.optString("name").endsWith(".apk")) {
                 return ReleaseInfo(
                     buildNumber = build,
-                    versionName = json.optString("name").ifBlank { tag },
                     notes = json.optString("body").trim(),
                     apkUrl = a.getString("browser_download_url"),
                     apkSize = a.optLong("size", -1L),
-                    pageUrl = json.optString("html_url"),
                     publishedAt = json.optString("published_at"),
                 )
             }
@@ -220,7 +236,7 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
             }
             if (code != 200) {
                 conn.disconnect()
-                throw IllegalStateException("HTTP $code")
+                throw FriendlyError("The download didn't start (code $code). Please try again later.")
             }
             break
         }
@@ -248,13 +264,41 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
         }
         if (release.apkSize > 0 && tmp.length() != release.apkSize) {
             tmp.delete()
-            throw IllegalStateException("incomplete download")
+            throw FriendlyError("The download didn't finish. Please try again.")
         }
         if (target.exists()) target.delete()
-        if (!tmp.renameTo(target)) throw IllegalStateException("could not save the update")
+        if (!tmp.renameTo(target)) throw FriendlyError("The update couldn't be saved on this phone. Check your free storage.")
     }
 
-    private fun apkFile(release: ReleaseInfo) = File(File(app.cacheDir, "updates"), "PureClimate-${release.buildNumber}.apk")
+    private fun friendlyMessage(e: Exception, checking: Boolean): String {
+        if (e is FriendlyError) return e.message ?: "Something went wrong. Please try again."
+        if (e is IOException) {
+            return if (checking) {
+                "Can't reach the update server. Check your internet connection and try again."
+            } else {
+                "The download was interrupted. Check your internet connection and try again."
+            }
+        }
+        return if (checking) {
+            "Couldn't check for updates right now. Please try again later."
+        } else {
+            "The update couldn't be downloaded. Please try again later."
+        }
+    }
+
+    private fun apkFile(release: ReleaseInfo) = File(downloadsDir(), "PureClimate-${release.buildNumber}.apk")
+
+    private fun downloadsDir() = File(app.cacheDir, "updates")
+
+    /** Deletes installers for versions that are already installed (or half-finished downloads). */
+    private fun removeOldDownloads() {
+        scope.launch(Dispatchers.IO) {
+            downloadsDir().listFiles()?.forEach { f ->
+                val n = APK_NAME.find(f.name)?.groupValues?.get(1)?.toIntOrNull()
+                if (n == null || n <= currentBuild) f.delete()
+            }
+        }
+    }
 
     companion object {
         private const val TAG = "UpdateManager"
@@ -262,7 +306,18 @@ class UpdateManager(context: Context, private val scope: CoroutineScope) {
         const val REPO = "Nex-Gen-Dev/PureClimate"
         private const val LATEST_URL = "https://api.github.com/repos/$REPO/releases/latest"
         private val TAG_NUMBER = Regex("\\d+")
+        private val APK_NAME = Regex("^PureClimate-(\\d+)\\.apk$")
         private const val KEY_AUTO = "auto_check"
         private const val KEY_LAST_CHECK = "last_check"
+
+        /**
+         * Internal build N is shown to people as Version N - 100 (build 110 is Version 10).
+         * Must match the "+ 100" in .github/workflows/build.yml and app/build.gradle.
+         */
+        const val VERSION_OFFSET = 100
+
+        fun displayNumber(build: Int): Int = (build - VERSION_OFFSET).coerceAtLeast(1)
+
+        fun label(build: Int): String = "Version ${displayNumber(build)}"
     }
 }

@@ -35,8 +35,12 @@ jobs:
       - name: Build APK
         id: build
         run: |
+          # Internal build number (Android versionCode, release tag "build-N").
+          # People see it as "Version N-100" (the run number): 1, 2, 3, ...
           BUILD_NUMBER=$((GITHUB_RUN_NUMBER + 100))
+          VERSION=$((BUILD_NUMBER - 100))
           echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           set -o pipefail
           ./gradlew assembleDebug -PbuildNumber=$BUILD_NUMBER --stacktrace --no-daemon 2>&1 | tee build.log
 
@@ -62,7 +66,7 @@ jobs:
       - name: Rename APK
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/*.apk "dist/PureClimate-2.0.${{ steps.build.outputs.build_number }}.apk"
+          cp app/build/outputs/apk/debug/*.apk "dist/PureClimate-Version-${{ steps.build.outputs.version }}.apk"
 
       - name: Release notes
         run: |
@@ -81,7 +85,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ steps.build.outputs.build_number }}
-          name: PureClimate 2.0.${{ steps.build.outputs.build_number }}
+          name: Version ${{ steps.build.outputs.version }}
           body_path: dist/NOTES.md
           files: dist/*.apk
           make_latest: true

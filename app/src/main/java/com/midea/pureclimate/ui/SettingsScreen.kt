@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.midea.pureclimate.data.AppTheme
@@ -34,8 +36,9 @@ fun SettingsScreen(
     theme: AppTheme,
     irOk: Boolean,
     protocolCount: Int,
-    version: String,
+    versionLabel: String,
     onTheme: (AppTheme) -> Unit,
+    onOpenInfo: (InfoPage) -> Unit,
     onBack: () -> Unit,
     updates: @Composable () -> Unit = {},
 ) {
@@ -46,7 +49,8 @@ fun SettingsScreen(
             SectionLabel("Updates")
             Gap(10.dp)
             updates()
-            Gap(20.dp)
+
+            Gap(24.dp)
             SectionLabel("Theme")
             Gap(10.dp)
             AppTheme.values().forEach { t ->
@@ -76,40 +80,53 @@ fun SettingsScreen(
                     if (selected) Icon(Icons.Rounded.CheckCircle, contentDescription = "Selected", tint = p.accent)
                 }
             }
+
             Gap(14.dp)
-            SectionLabel("Hardware")
+            SectionLabel("Your phone")
             Gap(10.dp)
             Panel(Modifier.fillMaxWidth()) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         StatusDot(irOk)
                         HGap(8.dp)
-                        Text(if (irOk) "IR emitter available" else "No IR emitter detected", color = p.text, fontSize = 15.sp)
+                        Text(if (irOk) "IR blaster found" else "No IR blaster found", color = p.text, fontSize = 15.sp)
                     }
                     Gap(6.dp)
                     Text(
-                        if (irOk) "Signals are sent through the phone's built-in IR blaster."
-                        else "This phone can't send IR. You can still set up rooms, but the remote won't control anything.",
+                        if (irOk) "PureClimate sends its signals through your phone's built-in IR blaster."
+                        else "This phone can't send IR signals. You can set up rooms, but the remote won't control anything.",
                         color = p.textMuted, fontSize = 13.sp, lineHeight = 17.sp,
                     )
                 }
             }
-            Gap(20.dp)
+
+            // About lives at the very bottom of the list.
+            Gap(24.dp)
             SectionLabel("About")
             Gap(10.dp)
-            Panel(Modifier.fillMaxWidth()) {
-                Column {
-                    Text("PureClimate $version", color = p.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Gap(6.dp)
-                    Text(
-                        (if (protocolCount > 0) "$protocolCount AC protocols built in." else "AC codes not loaded.") +
-                            " IR codes are generated from the open-source IRremoteESP8266 " +
-                            "library (LGPL-2.1), github.com/crankyoldgit/IRremoteESP8266.",
-                        color = p.textMuted, fontSize = 13.sp, lineHeight = 17.sp,
-                    )
+            val shape = RoundedCornerShape(16.dp)
+            Column(Modifier.fillMaxWidth().clip(shape).background(p.surface).border(1.dp, p.surfaceBorder, shape)) {
+                InfoPage.values().forEachIndexed { i, page ->
+                    if (i > 0) Box(Modifier.fillMaxWidth().padding(start = 16.dp).height(1.dp).background(p.surfaceBorder))
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onOpenInfo(page) }.padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(page.title, color = p.text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                            Text(page.subtitle, color = p.textMuted, fontSize = 12.sp)
+                        }
+                        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = p.textMuted)
+                    }
                 }
             }
-            Gap(20.dp)
+            Gap(16.dp)
+            Text(
+                "PureClimate · $versionLabel" + if (protocolCount > 0) " · $protocolCount AC protocols" else "",
+                color = p.textMuted, fontSize = 12.sp, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Gap(24.dp)
         }
     }
 }

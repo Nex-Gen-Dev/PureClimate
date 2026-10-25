@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Snowflake. Drawn inside the 66dp safe zone of the 108dp adaptive-icon canvas. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#48CAE4" android:pathData="M54,26L54,82M26,54L82,54M34.2,34.2L73.8,73.8M34.2,73.8L73.8,34.2" android:strokeWidth="4" android:strokeColor="#00B4D8" android:strokeLineCap="round"/>
+    <path
+        android:pathData="M54.0,54.0L54.0,29.0M54.0,39.0L60.1,33.9M54.0,39.0L47.9,33.9M54.0,54.0L32.3,41.5M41.0,46.5L39.6,38.6M41.0,46.5L33.5,49.2M54.0,54.0L32.3,66.5M41.0,61.5L33.5,58.8M41.0,61.5L39.6,69.4M54.0,54.0L54.0,79.0M54.0,69.0L47.9,74.1M54.0,69.0L60.1,74.1M54.0,54.0L75.7,66.5M67.0,61.5L68.4,69.4M67.0,61.5L74.5,58.8M54.0,54.0L75.7,41.5M67.0,46.5L74.5,49.2M67.0,46.5L68.4,38.6"
+        android:strokeColor="#48CAE4"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 </vector>

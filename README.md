@@ -6,7 +6,9 @@ An Android IR remote for air conditioners, built for Midea and 80+ other AC prot
 
 Every push to `main` builds an APK through GitHub Actions and publishes it as a **Release**. Open the repo's *Releases* page on your phone and tap the `.apk`.
 
-Builds are signed with a fixed key (`app/pureclimate-debug.keystore`), so each new APK installs over the previous one. If you had a build from before version 2.0, uninstall it once first.
+Builds are signed with a fixed key (`app/pureclimate-debug.keystore`), so each new APK installs over the previous one.
+
+The app updates itself: on launch it checks the latest release and offers **Install now / Later**. Versions are simple numbers (Version 10, Version 11, …). Internally the release tag and Android `versionCode` are `build-N`, where N is the GitHub run number + 100, and the app shows N − 100. Keep the `100` in sync across `app/build.gradle`, `UpdateManager.VERSION_OFFSET` and `.github/workflows/build.yml`.
 
 ## Features
 
@@ -32,3 +34,7 @@ Phone IR blasters can't receive. For learn mode you need:
 - A USB OTG adapter to connect the ESP32 to the phone
 
 It prints one `IR:<µs>,<µs>,…` line per captured signal at 115200 baud.
+
+## Credits and licenses
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Support: gendev, support.gendev@gmail.com.
