@@ -37,11 +37,16 @@ fun SettingsScreen(
     version: String,
     onTheme: (AppTheme) -> Unit,
     onBack: () -> Unit,
+    updates: @Composable () -> Unit = {},
 ) {
     val p = LocalPalette.current
     Column(Modifier.fillMaxSize()) {
         ScreenBar("Settings", onBack)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp)) {
+            SectionLabel("Updates")
+            Gap(10.dp)
+            updates()
+            Gap(20.dp)
             SectionLabel("Theme")
             Gap(10.dp)
             AppTheme.values().forEach { t ->
@@ -97,7 +102,8 @@ fun SettingsScreen(
                     Text("PureClimate $version", color = p.text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                     Gap(6.dp)
                     Text(
-                        "$protocolCount AC protocols built in. IR codes are generated from the open-source IRremoteESP8266 " +
+                        (if (protocolCount > 0) "$protocolCount AC protocols built in." else "AC codes not loaded.") +
+                            " IR codes are generated from the open-source IRremoteESP8266 " +
                             "library (LGPL-2.1), github.com/crankyoldgit/IRremoteESP8266.",
                         color = p.textMuted, fontSize = 13.sp, lineHeight = 17.sp,
                     )

@@ -32,6 +32,12 @@ import com.midea.pureclimate.ui.RemoteScreen
 import com.midea.pureclimate.ui.ScanScreen
 import com.midea.pureclimate.ui.SettingsScreen
 import com.midea.pureclimate.ui.SetupMethod
+import com.midea.pureclimate.ui.UpdatePrompt
+import com.midea.pureclimate.ui.UpdatesSection
+import com.midea.pureclimate.update.UpdateManager
+import com.midea.pureclimate.update.UpdateState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 sealed interface Screen {
     data object Home : Screen
@@ -44,10 +50,13 @@ sealed interface Screen {
 
 class MainActivity : ComponentActivity() {
     private lateinit var controller: AppController
+    private lateinit var updates: UpdateManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         controller = AppController(this, lifecycleScope)
+        updates = UpdateManager(this, lifecycleScope)
+        if (savedInstanceState == null) updates.autoCheckIfDue()
         setContent {
             val theme = controller.theme
             LaunchedEffect(theme) {
@@ -61,7 +70,7 @@ class MainActivity : ComponentActivity() {
                     Modifier.fillMaxSize().background(LocalPalette.current.background)
                         .windowInsetsPadding(WindowInsets.safeDrawing),
                 ) {
-                    App(controller)
+                    App(controller, updates)
                 }
             }
         }
@@ -69,13 +78,15 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun App(c: AppController) {
+private fun App(c: AppController, updates: UpdateManager) {
     val context = LocalContext.current
     val stack = remember { mutableStateListOf<Screen>(Screen.Home) }
     val screen = stack.last()
     val sendCount by c.blaster.sendCount.collectAsState()
     val irError by c.blaster.lastError.collectAsState()
     val irOk = c.blaster.hasEmitter
+    val updateState by updates.state.collectAsState()
+    var promptDismissedFor by remember { mutableStateOf(0) }
 
     fun go(s: Screen) { stack.add(s) }
     fun back() { if (stack.size > 1) stack.removeAt(stack.lastIndex) }
@@ -105,6 +116,17 @@ private fun App(c: AppController) {
         c.codebookError?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
     }
 
+    // "Install now / Later" popup for a newer build (outside Settings, which has its own controls).
+    val promptBuild = when (val st = updateState) {
+        is UpdateState.Available -> st.release.buildNumber
+        is UpdateState.Downloading -> st.release.buildNumber
+        is UpdateState.ReadyToInstall -> st.release.buildNumber
+        else -> 0
+    }
+    if (promptBuild > 0 && promptBuild != promptDismissedFor && screen != Screen.Settings) {
+        UpdatePrompt(updateState, updates, context, onDismiss = { promptDismissedFor = promptBuild })
+    }
+
     val roomName: (String) -> String = { id -> c.room(id)?.name ?: "" }
 
     when (screen) {
@@ -130,6 +152,7 @@ private fun App(c: AppController) {
             },
             onTheme = c::changeTheme,
             onBack = ::back,
+            updates = { UpdatesSection(updateState, updates, context) },
         )
 
         is Screen.Remote -> {
@@ -139,7 +162,7 @@ private fun App(c: AppController) {
             } else {
                 RemoteScreen(
                     room = room,
-                    protocolName = c.variantFor(room)?.name,
+                    protocolName = c.variantFor(room)?.name ?: c.codebookError?.let { "NO AC CODES" },
                     irOk = irOk,
                     sendCount = sendCount,
                     onBack = ::back,

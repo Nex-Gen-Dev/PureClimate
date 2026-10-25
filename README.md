@@ -18,7 +18,7 @@ Builds are signed with a fixed key (`app/pureclimate-debug.keystore`), so each n
 
 ## How the IR codes are made
 
-Phone IR blasters only send raw timings, so every protocol detail matters: bit order, checksums, repeats, and toggles. Rather than hand-porting protocols, `tools/codegen` compiles the reference library [IRremoteESP8266](https://github.com/crankyoldgit/IRremoteESP8266) (LGPL-2.1). It records the exact timings it sends for every power, mode, temperature, fan and swing combination (561 states × 82 protocol variants) and packs them into `app/src/main/assets/codebook.bin.gz` (≈270 KB). A Java test checks every packed frame bit-for-bit against the reference.
+Phone IR blasters only send raw timings, so every protocol detail matters: bit order, checksums, repeats, and toggles. Rather than hand-porting protocols, `tools/codegen` compiles the reference library [IRremoteESP8266](https://github.com/crankyoldgit/IRremoteESP8266) (LGPL-2.1). It records the exact timings it sends for every power, mode, temperature, fan and swing combination (561 states × 82 protocol variants) and packs them into `app/src/main/assets/codebook.pcb` (≈270 KB). A Java test checks every packed frame bit-for-bit against the reference.
 
 To regenerate: `tools/codegen/regenerate.sh`.
 

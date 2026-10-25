@@ -35,7 +35,7 @@ class AppController(context: Context, scope: CoroutineScope) {
     init {
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                runCatching { app.assets.open("codebook.bin.gz").use { Codebook.load(it) } }
+                runCatching { app.assets.open(CODEBOOK_ASSET).use { Codebook.load(it) } }
             }
             result.onSuccess { codebook = it }
                 .onFailure { codebookError = "Could not load AC codes: ${it.message}" }
@@ -131,5 +131,10 @@ class AppController(context: Context, scope: CoroutineScope) {
 
     private fun sendState(v: Codebook.Variant, r: Room) {
         blaster.send(v.carrierHz, v.state(r.mode.ordinal, r.temp, r.fan.ordinal, r.swing))
+    }
+
+    companion object {
+        /** Gzipped codebook; deliberately not named *.gz (see app/build.gradle). */
+        const val CODEBOOK_ASSET = "codebook.pcb"
     }
 }

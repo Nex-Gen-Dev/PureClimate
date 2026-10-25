@@ -59,9 +59,16 @@ public final class Codebook {
         return 1 + (((mode * 14 + t) * 4 + fan) * 2 + (swing ? 1 : 0));
     }
 
-    public static Codebook load(InputStream gzipped) throws IOException {
+    /** Reads the codebook, gzipped or plain (build tools may unpack .gz assets). */
+    public static Codebook load(InputStream raw) throws IOException {
+        BufferedInputStream buf = new BufferedInputStream(raw, 1 << 16);
+        buf.mark(2);
+        int b0 = buf.read();
+        int b1 = buf.read();
+        buf.reset();
+        boolean gzip = b0 == 0x1f && b1 == 0x8b;
         DataInputStream in = new DataInputStream(
-                new BufferedInputStream(new GZIPInputStream(gzipped), 1 << 16));
+                gzip ? new BufferedInputStream(new GZIPInputStream(buf), 1 << 16) : buf);
         try {
             if (in.readInt() != 0x50434231) throw new IOException("Bad codebook header");
             int count = in.readUnsignedShort();

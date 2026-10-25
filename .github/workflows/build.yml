@@ -48,10 +48,27 @@ jobs:
             echo "::error::${line}"
           done || true
 
+      - name: Verify AC codes are inside the APK
+        run: |
+          APK=$(ls app/build/outputs/apk/debug/*.apk | head -1)
+          SIZE=$(unzip -l "$APK" | awk '$4=="assets/codebook.pcb"{print $1}')
+          if [ -z "$SIZE" ] || [ "$SIZE" -lt 100000 ]; then
+            echo "::error::assets/codebook.pcb missing or too small in $APK"
+            unzip -l "$APK" | grep assets/ || true
+            exit 1
+          fi
+          echo "codebook.pcb: $SIZE bytes"
+
       - name: Rename APK
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/debug/*.apk "dist/PureClimate-2.0.${{ steps.build.outputs.build_number }}.apk"
+
+      - name: Release notes
+        run: |
+          # Commit message without trailer lines; shown in the app's update popup.
+          git log -1 --format=%B | sed -E '/^(Co-Authored-By|Claude-Session|Signed-off-by):/d' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' > dist/NOTES.md
+          cat dist/NOTES.md
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -65,8 +82,6 @@ jobs:
         with:
           tag_name: build-${{ steps.build.outputs.build_number }}
           name: PureClimate 2.0.${{ steps.build.outputs.build_number }}
-          body: |
-            Automatic build from ${{ github.sha }}.
-            Open this page on your phone and tap the .apk under Assets to install.
+          body_path: dist/NOTES.md
           files: dist/*.apk
           make_latest: true

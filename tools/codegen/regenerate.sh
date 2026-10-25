@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebuilds app/src/main/assets/codebook.bin.gz from IRremoteESP8266.
+# Rebuilds app/src/main/assets/codebook.pcb from IRremoteESP8266.
 #
 # Compiles the library natively (UNIT_TEST mode), drives IRac with every
 # power/mode/temp/fan/swing combination for every supported AC protocol,
@@ -39,9 +39,9 @@ mkdir -p obj
 ls *.cpp | grep -v '^gen.cpp$' | xargs -P "$(nproc)" -I{} g++ -std=gnu++11 -O1 -DUNIT_TEST -I. -c {} -o obj/{}.o
 g++ -std=gnu++11 -O1 -DUNIT_TEST -I. gen.cpp obj/*.o -o gen
 ./gen > codebook.txt
-python3 "$HERE/pack_codebook.py" codebook.txt "$REPO/app/src/main/assets/codebook.bin.gz" .
+python3 "$HERE/pack_codebook.py" codebook.txt "$REPO/app/src/main/assets/codebook.pcb" .
 
 # Verify every packed frame against the reference output.
 mkdir -p "$WORK/test"
 javac -d "$WORK/test" "$REPO"/app/src/main/java/com/midea/pureclimate/ir/*.java "$HERE/CodebookTest.java"
-java -cp "$WORK/test" CodebookTest "$REPO/app/src/main/assets/codebook.bin.gz" codebook.txt
+java -cp "$WORK/test" CodebookTest "$REPO/app/src/main/assets/codebook.pcb" codebook.txt
